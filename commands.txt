@@ -1,0 +1,29 @@
+.pingt <IP> [time]
+Real-time intelligent ping test with packet loss, average latency and optional duration (s/m/h).
+
+.watchdog <IP>
+Continuous network stability monitor detecting ping spikes and connection drops.
+
+.nethealth <IP>
+Quick network health analysis including average ping and packet loss.
+
+.gametest <IP>
+Gaming-oriented network test showing ping, jitter and packet loss in real time.
+
+.dns <domain>
+Resolves domain to IP address and checks DNS availability.
+
+.geoip <IP>
+Displays geographic information about an IP (country, city, ISP, organization).
+
+.webscan <domain>
+Checks website availability via HTTPS/HTTP and returns online status.
+
+.language <PL/EN>
+Changes interface language between Polish and English.
+
+.help
+Shows list of all available commands.
+
+.exit
+Closes the application.
