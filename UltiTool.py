@@ -48,9 +48,7 @@ def t(k):
 # =====================================
 
 def ping_once(ip):
-
     try:
-
         if platform.system().lower() == "windows":
             cmd = "ping -n 1 " + ip
         else:
@@ -70,7 +68,7 @@ def ping_once(ip):
         return False, None
 
 # =====================================
-# INTELLIGENT PINGT
+# PINGT (INTELLIGENT)
 # =====================================
 
 def parse_time(t):
@@ -79,10 +77,8 @@ def parse_time(t):
 
     if t.endswith("s"):
         return int(t[:-1])
-
     if t.endswith("m"):
         return int(t[:-1]) * 60
-
     if t.endswith("h"):
         return int(t[:-1]) * 3600
 
@@ -97,13 +93,12 @@ def pingt(ip, duration=None):
     recv = 0
     values = []
 
-    start_time = time.time()
+    start = time.time()
 
     try:
-
         while True:
 
-            if duration and time.time() - start_time >= duration:
+            if duration and time.time() - start >= duration:
                 break
 
             sent += 1
@@ -140,13 +135,11 @@ def watchdog(ip):
     spikes = 0
 
     try:
-
         while True:
 
             ok, ms = ping_once(ip)
 
             if ok:
-
                 print("🟢", ms, "ms")
 
                 if last and abs(ms-last) > 80:
@@ -154,7 +147,6 @@ def watchdog(ip):
                     print("⚠️ SPIKE")
 
                 last = ms
-
             else:
                 print("🔴 LOST")
 
@@ -211,7 +203,6 @@ def gametest(ip):
         ok, ms = ping_once(ip)
 
         if ok:
-
             vals.append(ms)
             print("🟢", ms, "ms")
 
@@ -219,7 +210,6 @@ def gametest(ip):
                 jitter.append(abs(ms-last))
 
             last = ms
-
         else:
             loss += 1
             print("🔴 loss")
@@ -257,7 +247,6 @@ def geoip(ip):
     print("\n🌍 GEOIP:", ip)
 
     try:
-
         data = json.loads(
             urllib.request.urlopen(
                 "http://ip-api.com/json/" + ip,
@@ -318,6 +307,33 @@ def webscan(domain):
         print(t("offline"))
 
 # =====================================
+# MYIP
+# =====================================
+
+def myip():
+
+    print("\n🧾 MY IP")
+
+    try:
+        local = socket.gethostbyname(socket.gethostname())
+        print("🏠 Local IP:", local)
+    except:
+        print("🏠 Local IP: ERROR")
+
+    try:
+        data = json.loads(
+            urllib.request.urlopen(
+                "https://api.ipify.org?format=json",
+                timeout=3
+            ).read().decode()
+        )
+
+        print("🌍 Public IP:", data["ip"])
+
+    except:
+        print("🌍 Public IP: ERROR")
+
+# =====================================
 # LANGUAGE
 # =====================================
 
@@ -354,6 +370,7 @@ def help_menu():
 .dns <domena>
 .geoip <ip>
 .webscan <domena>
+.myip
 
 .language <PL/EN>
 
@@ -377,14 +394,9 @@ while True:
         help_menu()
 
     elif cmd.startswith(".pingt "):
-
         parts = cmd.split()
         ip = parts[1]
-        duration = None
-
-        if len(parts) > 2:
-            duration = parse_time(parts[2])
-
+        duration = parse_time(parts[2]) if len(parts) > 2 else None
         pingt(ip, duration)
 
     elif cmd.startswith(".watchdog "):
@@ -404,6 +416,9 @@ while True:
 
     elif cmd.startswith(".webscan "):
         webscan(cmd.split()[1])
+
+    elif cmd == ".myip":
+        myip()
 
     elif cmd.startswith(".language "):
         language(cmd.split()[1])
