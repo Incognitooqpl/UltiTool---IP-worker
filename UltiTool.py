@@ -44,31 +44,7 @@ def t(k):
     return TEXT[LANG][k]
 
 # =====================================
-# PING CORE
-# =====================================
-
-def ping_once(ip):
-    try:
-        if platform.system().lower() == "windows":
-            cmd = "ping -n 1 " + ip
-        else:
-            cmd = "ping -c 1 " + ip
-
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        out = r.stdout.lower()
-
-        if "time=" in out:
-            line = out.split("time=")[1]
-            ms = float(line.split("ms")[0])
-            return True, ms
-
-        return False, None
-
-    except:
-        return False, None
-
-# =====================================
-# PINGT (INTELLIGENT)
+# PARSERS
 # =====================================
 
 def parse_time(t):
@@ -77,17 +53,80 @@ def parse_time(t):
 
     if t.endswith("s"):
         return int(t[:-1])
+
     if t.endswith("m"):
         return int(t[:-1]) * 60
+
     if t.endswith("h"):
         return int(t[:-1]) * 3600
 
     return int(t)
 
+def parse_size(s):
 
-def pingt(ip, duration=None):
+    s = s.lower()
+
+    if s.endswith("b"):
+        return int(s[:-1])
+
+    return int(s)
+
+def parse_pps(p):
+
+    p = p.lower()
+
+    if p.endswith("pps"):
+        return int(p[:-3])
+
+    return int(p)
+
+# =====================================
+# PING CORE
+# =====================================
+
+def ping_once(ip, size=32):
+
+    try:
+
+        system = platform.system().lower()
+
+        if system == "windows":
+            cmd = f"ping -n 1 -l {size} {ip}"
+        else:
+            cmd = f"ping -c 1 -s {size} {ip}"
+
+        r = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        out = r.stdout.lower()
+
+        if "time=" in out:
+
+            line = out.split("time=")[1]
+
+            ms = line.split("ms")[0]
+            ms = ms.replace("<", "").replace("=", "").strip()
+
+            return True, float(ms)
+
+        return False, None
+
+    except:
+        return False, None
+
+# =====================================
+# PINGT
+# =====================================
+
+def pingt(ip, duration=None, size=32, pps=1):
 
     print("\n📡 PINGT:", ip)
+    print("📦 Packet Size:", size, "B")
+    print("⚡ PPS:", pps)
 
     sent = 0
     recv = 0
@@ -95,14 +134,21 @@ def pingt(ip, duration=None):
 
     start = time.time()
 
+    if pps < 1:
+        pps = 1
+
+    delay = 1 / pps
+
     try:
+
         while True:
 
             if duration and time.time() - start >= duration:
                 break
 
             sent += 1
-            ok, ms = ping_once(ip)
+
+            ok, ms = ping_once(ip, size)
 
             if ok:
                 recv += 1
@@ -111,7 +157,7 @@ def pingt(ip, duration=None):
             else:
                 print("🔴 timeout")
 
-            time.sleep(1)
+            time.sleep(delay)
 
     except KeyboardInterrupt:
         pass
@@ -122,6 +168,9 @@ def pingt(ip, duration=None):
     print("\n===== RAPORT =====")
     print("📦 Loss:", round(loss,1), "%")
     print("📡 Avg:", round(avg,1), "ms")
+    print("📨 Packet Size:", size, "B")
+    print("📊 Sent:", sent)
+    print("📥 Received:", recv)
 
 # =====================================
 # WATCHDOG
@@ -135,11 +184,13 @@ def watchdog(ip):
     spikes = 0
 
     try:
+
         while True:
 
             ok, ms = ping_once(ip)
 
             if ok:
+
                 print("🟢", ms, "ms")
 
                 if last and abs(ms-last) > 80:
@@ -147,13 +198,14 @@ def watchdog(ip):
                     print("⚠️ SPIKE")
 
                 last = ms
+
             else:
                 print("🔴 LOST")
 
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\nSPIKES:", spikes)
+        print("\n⚠️ SPIKES:", spikes)
 
 # =====================================
 # NETHEALTH
@@ -203,6 +255,7 @@ def gametest(ip):
         ok, ms = ping_once(ip)
 
         if ok:
+
             vals.append(ms)
             print("🟢", ms, "ms")
 
@@ -210,6 +263,7 @@ def gametest(ip):
                 jitter.append(abs(ms-last))
 
             last = ms
+
         else:
             loss += 1
             print("🔴 loss")
@@ -247,6 +301,7 @@ def geoip(ip):
     print("\n🌍 GEOIP:", ip)
 
     try:
+
         data = json.loads(
             urllib.request.urlopen(
                 "http://ip-api.com/json/" + ip,
@@ -259,12 +314,14 @@ def geoip(ip):
             return
 
         print("📡 IP:", data["query"])
-        print("🌍 Kraj:", data["country"])
-        print("🏙 Miasto:", data["city"])
+        print("🌍 Country:", data["country"])
+        print("🏙 City:", data["city"])
         print("📶 ISP:", data["isp"])
+        print("🧭 Region:", data["regionName"])
+        print("🏢 Org:", data["org"])
 
-    except:
-        print("❌ ERROR")
+    except Exception as e:
+        print("❌ ERROR:", e)
 
 # =====================================
 # WEBSCAN
@@ -284,6 +341,8 @@ def webscan(domain):
     https_ok = False
     http_ok = False
 
+    print("\n🔐 HTTPS:")
+
     try:
         urllib.request.urlopen("https://" + domain, timeout=3)
         https_ok = True
@@ -291,9 +350,12 @@ def webscan(domain):
     except:
         print(t("https_fail"))
 
+    print("\n🌍 HTTP:")
+
     try:
         urllib.request.urlopen("http://" + domain, timeout=3)
         http_ok = True
+        print("🟢 HTTP OK")
     except:
         print(t("http_fail"))
 
@@ -321,6 +383,7 @@ def myip():
         print("🏠 Local IP: ERROR")
 
     try:
+
         data = json.loads(
             urllib.request.urlopen(
                 "https://api.ipify.org?format=json",
@@ -353,29 +416,35 @@ def language(lang):
         print("PL / EN only")
 
 # =====================================
-# HELP
+# HELP MENU
 # =====================================
 
 def help_menu():
 
     print("""
 
-===== ULTI TOOL vFINAL =====
+===== ULTI TOOL v1.2 =====
 
-.pingt <ip> [czas]
+.pingt <ip> [time] [size] [pps]
 .watchdog <ip>
 .nethealth <ip>
 .gametest <ip>
 
-.dns <domena>
+.dns <domain>
 .geoip <ip>
-.webscan <domena>
+.webscan <domain>
 .myip
 
 .language <PL/EN>
 
 .help
 .exit
+
+Examples:
+.pingt 8.8.8.8
+.pingt 8.8.8.8 10s
+.pingt 8.8.8.8 10s 128b
+.pingt 8.8.8.8 10s 128b 5pps
 
 ============================
 """)
@@ -394,10 +463,28 @@ while True:
         help_menu()
 
     elif cmd.startswith(".pingt "):
+
         parts = cmd.split()
+
         ip = parts[1]
-        duration = parse_time(parts[2]) if len(parts) > 2 else None
-        pingt(ip, duration)
+
+        duration = None
+        size = 32
+        pps = 1
+
+        for part in parts[2:]:
+
+            # PPS FIRST (important fix)
+            if part.endswith("pps"):
+                pps = parse_pps(part)
+
+            elif part.endswith("b"):
+                size = parse_size(part)
+
+            elif part.endswith(("s", "m", "h")):
+                duration = parse_time(part)
+
+        pingt(ip, duration, size, pps)
 
     elif cmd.startswith(".watchdog "):
         watchdog(cmd.split()[1])
